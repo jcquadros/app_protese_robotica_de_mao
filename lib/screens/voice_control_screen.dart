@@ -97,6 +97,7 @@ class _VoiceControlScreenState extends State<VoiceControlScreen> {
     await _speechToText.stop();
     setState(() {
       _isListening = false;
+      _statusText = "Pressione o microfone para dar um comando";
     });
   }
 
