@@ -2,6 +2,16 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Precisamos de acesso ao Bluetooth para conectar com a mão robótica.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Precisamos de acesso ao Bluetooth para conectar com a mão robótica.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Precisamos de acesso à localização para encontrar dispositivos Bluetooth próximos.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Precisamos de acesso ao reconhecimento de voz para controlar a mão robótica.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Precisamos de acesso ao microfone para capturar seus comandos de voz.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
