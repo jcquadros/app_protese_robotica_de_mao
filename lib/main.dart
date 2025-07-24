@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:mao_robotica_app/models/hand_command.dart';
 import 'services/bluetooth_service.dart';
 import 'screens/gestures_screen.dart';
 import 'screens/finger_control_screen.dart';
@@ -43,7 +44,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   
   /// Wrapper para a função de envio de comando do serviço.
-  void _sendCommand(String command) {
+  void _sendCommand(HandCommand command) {
     widget.bluetoothService.sendCommand(command);
     // O feedback visual pode ser adicionado aqui, se desejado.
     ScaffoldMessenger.of(context).showSnackBar(
@@ -76,8 +77,7 @@ class _MainScreenState extends State<MainScreen> {
                   icon: Icon(icon, color: color),
                   onPressed: () {
                     Navigator.of(context).push(MaterialPageRoute(
-                        builder: (context) =>
-                            BluetoothConnectionScreen(service: widget.bluetoothService)));
+                        builder: (context) => BluetoothConnectionScreen(service: widget.bluetoothService)));
                   },
                 );
               },

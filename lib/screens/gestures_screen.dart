@@ -1,30 +1,93 @@
 import 'package:flutter/material.dart';
+import 'package:mao_robotica_app/models/hand_command.dart';
 import '../widgets/gesture_card.dart'; // Importa o widget de cartão reutilizável.
 
 /// Uma tela que exibe uma grade de gestos pré-definidos que podem ser enviados.
 class GesturesScreen extends StatelessWidget {
   /// Callback para enviar o comando de um gesto específico quando um cartão é tocado.
-  final Function(String) onSendCommand;
+  final Function(HandCommand) onSendCommand;
   
   GesturesScreen({super.key, required this.onSendCommand});
 
   /// Lista de dados que define cada gesto, incluindo nome, imagem e o comando a ser enviado.
-  final List<Map<String, String>> gestures = [
+  final List<Map<String, dynamic>> gestures = [
     {
       'name': 'Faz o L',
       'image': 'assets/images/fazoele.png',
-      'command': 'FAZOELE',
+      'command': HandCommand(
+        thumb: 100,   // polegar estendido
+        index: 100,   // indicador estendido
+        middle: 0,
+        ring: 0,
+        pinky: 0,
+      ),
     },
-    {'name': 'Joia', 'image': 'assets/images/joia.png', 'command': 'JOIA'},
-    {'name': 'Paz', 'image': 'assets/images/paz.png', 'command': 'PAZ'},
-    {'name': 'Rock', 'image': 'assets/images/rock.png', 'command': 'ROCK'},
-    {'name': 'OK', 'image': 'assets/images/ok.png', 'command': 'OK'},
+    {
+      'name': 'Joia',
+      'image': 'assets/images/joia.png',
+      'command': HandCommand(
+        thumb: 100,   // polegar para cima
+        index: 0,
+        middle: 0,
+        ring: 0,
+        pinky: 0,
+      ),
+    },
+    {
+      'name': 'Paz',
+      'image': 'assets/images/paz.png',
+      'command': HandCommand(
+        thumb: 0,
+        index: 100,
+        middle: 100,
+        ring: 0,
+        pinky: 0,
+      ),
+    },
+    {
+      'name': 'Rock',
+      'image': 'assets/images/rock.png',
+      'command': HandCommand(
+        thumb: 0,
+        index: 100,
+        middle: 0,
+        ring: 0,
+        pinky: 100,
+      ),
+    },
+    {
+      'name': 'OK',
+      'image': 'assets/images/ok.png',
+      'command': HandCommand(
+        thumb: 100,
+        index: 100,
+        middle: 0,
+        ring: 0,
+        pinky: 0,
+      ),
+    },
     {
       'name': 'Apontar',
       'image': 'assets/images/apontar.png',
-      'command': 'APONTAR',
+      'command': HandCommand(
+        thumb: 50,
+        index: 100,
+        middle: 0,
+        ring: 0,
+        pinky: 0,
+      ),
     },
-    {'name': 'Parar', 'image': 'assets/images/parar.png', 'command': 'PARAR'},
+    {
+      'name': 'Parar',
+      'image': 'assets/images/parar.png',
+      'command': HandCommand(
+        thumb: 100,
+        index: 100,
+        middle: 100,
+        ring: 100,
+        pinky: 100,
+      ),
+    },
   ];
 
   @override

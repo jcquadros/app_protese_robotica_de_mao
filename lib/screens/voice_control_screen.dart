@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:mao_robotica_app/models/hand_command.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:http/http.dart' as http;
 import '../constants.dart'; // Importa nossas constantes
@@ -8,7 +9,7 @@ import '../constants.dart'; // Importa nossas constantes
 /// Tela que permite ao usuário controlar a mão robótica usando comandos de voz.
 class VoiceControlScreen extends StatefulWidget {
   /// Callback para enviar o comando final interpretado.
-  final Function(String) onSendCommand;
+  final Function(HandCommand) onSendCommand;
   const VoiceControlScreen({super.key, required this.onSendCommand});
 
   @override
@@ -114,11 +115,25 @@ class _VoiceControlScreenState extends State<VoiceControlScreen> {
     }
 
     final String prompt = """
-      Você é um controlador de uma mão robótica. Sua única função é converter uma frase em um comando específico.
-      Os comandos de gestos válidos são: JOIA, PAZ, ROCK, OK, APONTAR, PARAR, FAZOELE.
-      Os comandos de dedos individuais seguem o formato NOME_DEDO:VALOR, onde o valor é de 0 a 100. Os nomes dos dedos são: POLEGAR, INDICADOR, MEDIO, ANELAR, MINIMO.
-      Exemplos: "Dobre o dedo indicador até a metade" -> INDICADOR:50. "Estique o polegar" -> POLEGAR:0. "Sinal de rock" -> ROCK.
-      Responda APENAS com o comando. Se não entender a frase, responda com "UNKNOWN".
+      Você é um assistente que recebe um comando de voz relacionado a gestos de mão e deve retornar um objeto JSON com os valores de cada dedo da mão entre 0 e 100.
+      
+      Cada comando de voz representa uma posição da mão. O JSON deve conter os seguintes campos inteiros (de 0 a 100): `thumb`, `index`, `middle`, `ring`, `pinky`.
+      
+      Exemplos:
+      - 100 significa o dedo totalmente fechado
+      - 0 significa o dedo totalmente estendido
+      
+      Com base na descrição do comando de voz, estime os valores de cada dedo e retorne apenas um JSON com os campos `thumb`, `index`, `middle`, `ring`, `pinky`.
+      
+      Exemplo de saída esperada:
+      {
+        "thumb": 100,
+        "index": 100,
+        "middle": 0,
+        "ring": 0,
+        "pinky": 0
+      }
+      
       Frase para converter: "$text"
     """;
 
@@ -133,14 +148,12 @@ class _VoiceControlScreenState extends State<VoiceControlScreen> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        String command = data['candidates'][0]['content']['parts'][0]['text'].trim();
-        
-        if (command != "UNKNOWN") {
-          widget.onSendCommand(command);
-          _statusText = "Comando '$command' enviado!";
-        } else {
-          _statusText = "Não entendi o comando. Tente novamente.";
-        }
+
+        String responseString = data['candidates'][0]['content']['parts'][0]['text'].trim().replaceAll("json", "").replaceAll("`", "");
+        Map<String, dynamic> jsonMap = jsonDecode(responseString);
+        var command = HandCommand.fromJson(jsonMap);
+
+        widget.onSendCommand(command);
       } else {
         _statusText = "Erro na API do Gemini: ${response.body}";
       }

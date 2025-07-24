@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:mao_robotica_app/models/hand_command.dart';
 import '../constants.dart';
 
 /// Uma classe de serviço para gerir toda a lógica de comunicação Bluetooth.
@@ -84,9 +85,10 @@ class AppBluetoothService {
   }
 
   /// Envia um comando de texto para a mão robótica.
-  void sendCommand(String command) {
+  void sendCommand(HandCommand command) {
+    return;
     if (_targetCharacteristic != null) {
-      List<int> bytes = utf8.encode(command);
+      List<int> bytes = utf8.encode(command.toString());
       _targetCharacteristic!.write(bytes);
       print("Comando enviado: $command");
     } else {
