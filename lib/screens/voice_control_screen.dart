@@ -147,7 +147,7 @@ class _VoiceControlScreenState extends State<VoiceControlScreen> {
 
         String responseString = data['candidates'][0]['content']['parts'][0]['text'].trim().replaceAll("json", "").replaceAll("`", "");
 
-        var command = predefinedGestures.firstWhere((gesture) => gesture['name'] == responseString, orElse: () => predefinedGestures.last)['command'];
+        HandCommand command = predefinedGestures.firstWhere((gesture) => gesture['name'] == responseString, orElse: () => { 'command': HandCommand() })['command'];
 
         widget.onSendCommand(command);
       } else {

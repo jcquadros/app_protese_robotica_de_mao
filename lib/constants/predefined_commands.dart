@@ -91,7 +91,7 @@ final List<Map<String, dynamic>> predefinedGestures = [
     ),
   },
   {
-    'name': 'Punho',
+    'name': 'Mão fechada',
     'image': 'assets/images/parar.png',
     'command': HandCommand(
       thumb: 100,
@@ -102,7 +102,7 @@ final List<Map<String, dynamic>> predefinedGestures = [
     ),
   },
   {
-    'name': 'Parar',
+    'name': 'Mão aberta',
     'image': 'assets/images/parar.png',
     'command': HandCommand(
       thumb: 0,
