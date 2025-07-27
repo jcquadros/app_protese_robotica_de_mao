@@ -8,11 +8,15 @@ import 'package:rxdart/rxdart.dart';
 class AppBluetoothService extends ChangeNotifier {
   final Guid _serviceUuid = Guid("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
   final Guid _characteristicUuid = Guid("beb5483e-36e1-4688-b7f5-ea07361b26a8");
-  BluetoothDevice? _selectedDevice;
+  BluetoothDevice? _connectedDevice;
 
   final BehaviorSubject<BluetoothAdapterState> _adapterStateController = BehaviorSubject<BluetoothAdapterState>.seeded(BluetoothAdapterState.unknown);
   Stream<BluetoothAdapterState> get adapterState => _adapterStateController.stream;
   BluetoothAdapterState get currentAdapterState => _adapterStateController.value;
+
+  final BehaviorSubject<BluetoothConnectionState> _connectionStateController = BehaviorSubject<BluetoothConnectionState>.seeded(BluetoothConnectionState.disconnected);
+  Stream<BluetoothConnectionState> get connectionState => _connectionStateController.stream;
+  BluetoothConnectionState get currentConnectionState => _connectionStateController.value;
 
   StreamSubscription<BluetoothAdapterState>? _adapterStateSubscription;
 
@@ -71,8 +75,16 @@ class AppBluetoothService extends ChangeNotifier {
 
   Future<void> connectToDevice(BluetoothDevice device) async {
     try {
+      // Cancel any previous connection state subscription
+
+      // Listen to the device's connection state stream
+      device.connectionState.listen((BluetoothConnectionState state) {
+        _connectionStateController.add(state);
+        },
+      );
+
       await device.connect(timeout: const Duration(seconds: 10));
-      _selectedDevice = device;
+      _connectedDevice = device;
       print("Connected to device: ${device.platformName}");
     } catch (e) {
       print("Error connecting: $e");
@@ -84,12 +96,12 @@ class AppBluetoothService extends ChangeNotifier {
     super.dispose();
     _adapterStateSubscription?.cancel();
     FlutterBluePlus.stopScan();
-    _selectedDevice?.disconnect();
+    _connectedDevice?.disconnect();
   }
 
   void sendMessage(List<int> bytes) async {
     // Discover services
-    List<BluetoothService> services = await _selectedDevice
+    List<BluetoothService> services = await _connectedDevice
         ?.discoverServices() ?? [];
     for (var service in services) {
       if (service.uuid == _serviceUuid) {

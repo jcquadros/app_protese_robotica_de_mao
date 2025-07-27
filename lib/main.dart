@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import 'package:mao_robotica_app/screens/bluetooth_not_enabled_screen.dart';
 import 'package:mao_robotica_app/screens/main_screen.dart';
+import 'models/hand_command.dart';
 import 'services/bluetooth_service.dart';
 
 
@@ -40,8 +42,7 @@ class _MyAppState extends State<MyApp> {
       _handleAdapterStateChange(bluetoothService.currentAdapterState);
     });
 
-    _adapterStateSubscription =
-        bluetoothService.adapterState.listen(_handleAdapterStateChange);
+    _adapterStateSubscription = bluetoothService.adapterState.listen(_handleAdapterStateChange);
   }
 
   void _handleAdapterStateChange(BluetoothAdapterState state) {
@@ -50,8 +51,9 @@ class _MyAppState extends State<MyApp> {
         if (_isBluetoothOffPageVisible) {
           navigatorKey.currentState?.pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) =>
-                MainScreen(bluetoothService: Provider.of<AppBluetoothService>(
-                    context, listen: false))),
+                MainScreen(
+                    bluetoothService: Provider.of<AppBluetoothService>(context, listen: false),)
+                ),
                 (route) => false,
           );
           setState(() {

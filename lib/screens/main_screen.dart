@@ -1,8 +1,9 @@
 import 'dart:convert';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:mao_robotica_app/screens/voice_control_screen.dart';
+import 'package:provider/provider.dart';
 
 import '../models/hand_command.dart';
 import '../services/bluetooth_service.dart';
@@ -13,6 +14,7 @@ import 'gestures_screen.dart';
 /// A tela principal que contém a navegação por abas.
 class MainScreen extends StatefulWidget {
   final AppBluetoothService bluetoothService;
+
   const MainScreen({super.key, required this.bluetoothService});
 
   @override
@@ -21,8 +23,18 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   void _sendCommand(HandCommand command) {
+    final bluetoothService = Provider.of<AppBluetoothService>(
+        context, listen: false);
+
+    if (bluetoothService.currentConnectionState != BluetoothConnectionState.connected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Nenhum dispositivo conectado'), duration: const Duration(seconds: 1)),
+      );
+      return;
+    }
+
     var serializedCommand = json.encode(command.toJson()).codeUnits;
-    widget.bluetoothService.sendMessage(serializedCommand);
+    bluetoothService.sendMessage(serializedCommand);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Enviando comando'), duration: const Duration(seconds: 1)),
@@ -37,17 +49,28 @@ class _MainScreenState extends State<MainScreen> {
         appBar: AppBar(
           title: const Text('Controle Mão Robótica'),
           actions: [
-            IconButton(
-              icon: Icon(Icons.bluetooth_connected, color: Colors.grey),
-              onPressed: () {
-                // Navega para a tela de conexão
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => BluetoothConnectionScreen(bluetoothService: widget.bluetoothService),
-                  ),
+            StreamBuilder<BluetoothConnectionState>(
+              stream: widget.bluetoothService.connectionState,
+              initialData: BluetoothConnectionState.disconnected,
+              builder: (c, snapshot) {
+                IconData icon;
+                Color color;
+                if (snapshot.data == BluetoothConnectionState.connected) {
+                  icon = Icons.bluetooth_connected;
+                  color = Colors.lightBlueAccent;
+                } else {
+                  icon = Icons.bluetooth_disabled;
+                  color = Colors.grey;
+                }
+                return IconButton(
+                  icon: Icon(icon, color: color),
+                  onPressed: () {
+                    Navigator.of(context).push(MaterialPageRoute(
+                        builder: (context) => BluetoothConnectionScreen(bluetoothService: widget.bluetoothService)));
+                  },
                 );
               },
-            )
+            ),
           ],
           bottom: const TabBar(
             tabs: [
