@@ -1,50 +1,63 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:rxdart/rxdart.dart';
 
 /// Uma classe de serviço para gerir toda a lógica de comunicação Bluetooth.
-class AppBluetoothService {
+class AppBluetoothService extends ChangeNotifier {
   final Guid _serviceUuid = Guid("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
   final Guid _characteristicUuid = Guid("beb5483e-36e1-4688-b7f5-ea07361b26a8");
   BluetoothDevice? _selectedDevice;
 
-  AppBluetoothService() {
-    FlutterBluePlus.adapterState.listen((BluetoothAdapterState state) {
-      if (state == BluetoothAdapterState.on) {
-        FlutterBluePlus.onScanResults.listen((results) {
-          if (results.isNotEmpty) {
-            var result = results.first;
-            var device = result.device;
-            _selectedDevice = device;
-            device.connectionState.listen((
-                BluetoothConnectionState state) async {
-              if (state == BluetoothConnectionState.disconnected) {
-                print(
-                    "${device.disconnectReason?.code} ${device.disconnectReason
-                        ?.description}");
-              }
-            });
+  final BehaviorSubject<BluetoothAdapterState> _adapterStateController = BehaviorSubject<BluetoothAdapterState>.seeded(BluetoothAdapterState.unknown);
+  Stream<BluetoothAdapterState> get adapterState => _adapterStateController.stream;
+  BluetoothAdapterState get currentAdapterState => _adapterStateController.value;
 
-            _connectToDevice(device);
+  StreamSubscription<BluetoothAdapterState>? _adapterStateSubscription;
+
+  AppBluetoothService() {
+    _initializeBluetoothMonitoring();
+  }
+
+  Future<void> _initializeBluetoothMonitoring() async {
+    if (await FlutterBluePlus.isSupported == false) {
+      print("Bluetooth not supported by this device");
+      _adapterStateController.add(BluetoothAdapterState.unavailable);
+      return;
+    }
+
+    _adapterStateSubscription = FlutterBluePlus.adapterState.listen(
+            (BluetoothAdapterState state) {
+          print("Adapter State Changed: $state");
+          _adapterStateController.add(state);
+
+          if (state == BluetoothAdapterState.off) {
+            // Optional: Stop scan, disconnect, clear device list if Bluetooth turns off
+            stopScan();
+          } else if (state == BluetoothAdapterState.on) {
+            // Optional: You might want to trigger an automatic scan or other actions
+            // when Bluetooth is turned back on.
           }
         },
-          onError: (e) => print(e),
-        );
-      } else {
-        print("Bluetooth adapter is not on");
-      }
-    });
-    _startScan();
+        onError: (dynamic error) {
+          print("Error listening to adapter state: $error");
+          _adapterStateController.add(BluetoothAdapterState.unknown); // Or handle error appropriately
+        }
+    );
   }
 
   /// Inicia o escaneamento por dispositivos BLE.
-  void _startScan() async {
+  void startScan() async {
     await _requestPermissions();
 
     await FlutterBluePlus.startScan(
-        withServices: [_serviceUuid],
         timeout: Duration(seconds: 15)
     );
+  }
+
+  void stopScan() {
+    FlutterBluePlus.stopScan();
   }
 
   Future<void> _requestPermissions() async {
@@ -56,17 +69,20 @@ class AppBluetoothService {
     ].request();
   }
 
-  Future<void> _connectToDevice(BluetoothDevice device) async {
+  Future<void> connectToDevice(BluetoothDevice device) async {
     try {
       await device.connect(timeout: const Duration(seconds: 10));
+      _selectedDevice = device;
       print("Connected to device: ${device.platformName}");
     } catch (e) {
       print("Error connecting: $e");
     }
   }
 
+  @override
   void dispose() {
-    // Para a busca ao sair da tela para economizar recursos e bateria.
+    super.dispose();
+    _adapterStateSubscription?.cancel();
     FlutterBluePlus.stopScan();
     _selectedDevice?.disconnect();
   }
