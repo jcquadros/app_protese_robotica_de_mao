@@ -5,7 +5,7 @@ import 'package:mao_robotica_app/constants/predefined_commands.dart';
 import 'package:mao_robotica_app/models/hand_command.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:http/http.dart' as http;
-import '../constants.dart';
+import '../constants/envs.dart';
 
 /// Tela que permite ao usuário controlar a mão robótica usando comandos de voz.
 class VoiceControlScreen extends StatefulWidget {
