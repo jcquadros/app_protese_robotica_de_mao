@@ -15,55 +15,55 @@ class GesturesScreen extends StatelessWidget {
       'name': 'Faz o L',
       'image': 'assets/images/fazoele.png',
       'command': HandCommand(
-        thumb: 100,   // polegar estendido
-        index: 100,   // indicador estendido
-        middle: 0,
-        ring: 0,
-        pinky: 0,
+        thumb: 0,   // polegar estendido
+        index: 0,   // indicador estendido
+        middle: 100,
+        ring: 100,
+        pinky: 100,
       ),
     },
     {
       'name': 'Joia',
       'image': 'assets/images/joia.png',
       'command': HandCommand(
-        thumb: 100,   // polegar para cima
-        index: 0,
-        middle: 0,
-        ring: 0,
-        pinky: 0,
+        thumb: 0,   // polegar para cima
+        index: 100,
+        middle: 100,
+        ring: 100,
+        pinky: 100,
       ),
     },
     {
       'name': 'Paz',
       'image': 'assets/images/paz.png',
       'command': HandCommand(
-        thumb: 0,
-        index: 100,
-        middle: 100,
-        ring: 0,
-        pinky: 0,
+        thumb: 100,
+        index: 0,
+        middle: 0,
+        ring: 100,
+        pinky: 100,
       ),
     },
     {
       'name': 'Rock',
       'image': 'assets/images/rock.png',
       'command': HandCommand(
-        thumb: 0,
-        index: 100,
-        middle: 0,
-        ring: 0,
-        pinky: 100,
+        thumb: 100,
+        index: 0,
+        middle: 100,
+        ring: 100,
+        pinky: 0,
       ),
     },
     {
       'name': 'OK',
       'image': 'assets/images/ok.png',
       'command': HandCommand(
-        thumb: 100,
-        index: 100,
-        middle: 0,
-        ring: 0,
-        pinky: 0,
+        thumb: 0,
+        index: 0,
+        middle: 100,
+        ring: 100,
+        pinky: 100,
       ),
     },
     {
@@ -71,21 +71,21 @@ class GesturesScreen extends StatelessWidget {
       'image': 'assets/images/apontar.png',
       'command': HandCommand(
         thumb: 50,
-        index: 100,
-        middle: 0,
-        ring: 0,
-        pinky: 0,
+        index: 0,
+        middle: 100,
+        ring: 100,
+        pinky: 100,
       ),
     },
     {
       'name': 'Parar',
       'image': 'assets/images/parar.png',
       'command': HandCommand(
-        thumb: 100,
-        index: 100,
-        middle: 100,
-        ring: 100,
-        pinky: 100,
+        thumb: 0,
+        index: 0,
+        middle: 0,
+        ring: 0,
+        pinky: 0,
       ),
     },
   ];
