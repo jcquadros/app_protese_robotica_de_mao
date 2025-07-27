@@ -1,13 +1,15 @@
-import 'dart:io'; // Importado para verificar a plataforma (Android/iOS)
+import 'dart:async'; // For StreamSubscription
+
 import 'package:flutter/material.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart'; // For BluetoothDevice type
 import '../services/bluetooth_service.dart';
 
 /// Tela para escanear e conectar a dispositivos Bluetooth.
 class BluetoothConnectionScreen extends StatefulWidget {
-  final AppBluetoothService service;
-  const BluetoothConnectionScreen({super.key, required this.service});
+  final AppBluetoothService bluetoothService;
+
+  const BluetoothConnectionScreen({Key? key, required this.bluetoothService})
+      : super(key: key);
 
   @override
   State<BluetoothConnectionScreen> createState() =>
@@ -15,143 +17,235 @@ class BluetoothConnectionScreen extends StatefulWidget {
 }
 
 class _BluetoothConnectionScreenState extends State<BluetoothConnectionScreen> {
-  
+  List<BluetoothDevice> _scannedDevices = [];
+  StreamSubscription<List<ScanResult>>? _scanResultsSubscription;
+  StreamSubscription<bool>? _isScanningSubscription;
+  StreamSubscription<BluetoothConnectionState>? _connectionStateSubscription;
+  bool _isScanning = false;
+  BluetoothDevice? _currentlyConnectedDevice;
+
   @override
   void initState() {
     super.initState();
-    // Inicia a busca por dispositivos assim que a tela é construída.
-    _checkPermissionsAndScan();
+
+    _currentlyConnectedDevice = widget.bluetoothService.connectedDevice;
+
+    _scanResultsSubscription =
+        FlutterBluePlus.scanResults.listen((results) {
+          if (mounted) {
+            setState(() {
+              _scannedDevices = results
+                  .where((result) =>
+              result.device.platformName.isNotEmpty ||
+                  result.advertisementData.advName.isNotEmpty)
+                  .map((result) => result.device)
+                  .toList();
+            });
+          }
+        });
+
+    // Listen to connection state changes to update the _currentlyConnectedDevice
+    _connectionStateSubscription = widget.bluetoothService.connectionState.listen((state) {
+      if (mounted) {
+        setState(() {
+          if (state == BluetoothConnectionState.connected) {
+            _currentlyConnectedDevice = widget.bluetoothService.connectedDevice;
+          } else if (state == BluetoothConnectionState.disconnected) {
+            _currentlyConnectedDevice = null;
+          }
+        });
+      }
+    });
+
+    _scanResultsSubscription =
+        FlutterBluePlus.onScanResults.listen((results) {
+          // Filter out devices without a name to keep the list cleaner
+          // And update the list of available devices
+          setState(() {
+            _scannedDevices = results
+                .where((result) =>
+            result.device.platformName.isNotEmpty ||
+                result.advertisementData.advName.isNotEmpty)
+                .map((result) => result.device)
+                .toList();
+            // Simple de-duplication based on remoteId
+            _scannedDevices = _scannedDevices.toSet().toList();
+          });
+        });
+
+    // Listen to scanning state
+    _isScanningSubscription =
+        FlutterBluePlus.isScanning.listen((isScanning) {
+          setState(() {
+            _isScanning = isScanning;
+          });
+        });
+
+    // Start scanning when the screen is initialized
+    _startScan();
   }
 
   @override
   void dispose() {
-    // Para a busca ao sair da tela para economizar recursos e bateria.
-    widget.service.stopScan();
+    _stopScan(); // Stop scanning when the screen is disposed
+    _scanResultsSubscription?.cancel();
+    _isScanningSubscription?.cancel();
     super.dispose();
   }
 
-  /// Verifica todas as condições necessárias (Bluetooth, Permissões, Localização) antes de escanear.
-  Future<void> _checkPermissionsAndScan() async {
-    print("[LOG] Verificando permissões e status...");
-    // 1. Verifica primeiro se o Bluetooth do celular está ligado.
-    if (await FlutterBluePlus.adapterState.first != BluetoothAdapterState.on) {
-      print("[LOG] ERRO: Bluetooth está desligado.");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Bluetooth está desligado. Por favor, ative-o.'),
-          backgroundColor: Colors.red,
-        ));
-      }
-      return;
-    }
-
-    // 2. Pede todas as permissões necessárias de uma vez.
-    if (Platform.isAndroid) {
-      var permissions = await [
-        Permission.location,
-        Permission.bluetoothScan,
-        Permission.bluetoothConnect,
-      ].request();
-
-      if (permissions[Permission.location]!.isDenied ||
-          permissions[Permission.bluetoothScan]!.isDenied ||
-          permissions[Permission.bluetoothConnect]!.isDenied) {
-        print("[LOG] ERRO: Uma ou mais permissões foram negadas.");
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Permissões de Localização e Bluetooth são necessárias para continuar.'),
-          ));
-        }
-        return;
-      }
-    }
-    
-    // 3. Verifica se o serviço de localização (GPS) está ligado.
-    var isLocationServiceEnabled = await Permission.location.serviceStatus.isEnabled;
-    if (!isLocationServiceEnabled) {
-      print("[LOG] ERRO: Serviços de Localização (GPS) estão desligados.");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Por favor, ative os Serviços de Localização (GPS).')));
-      }
-      return;
-    }
-
-    // 4. Se tudo estiver OK, inicia o scan.
-    print("[LOG] Todas as verificações passaram. Iniciando o scan...");
-    widget.service.startScan();
+  void _startScan() {
+    widget.bluetoothService.startScan();
   }
 
-  /// Tenta se conectar a um dispositivo e atualiza a UI de acordo com o resultado.
-  Future<void> _connectToDevice(BluetoothDevice device) async {
-    bool success = await widget.service.connectToDevice(device);
+  void _stopScan() {
+    widget.bluetoothService.stopScan();
+  }
 
-    if (success && mounted) {
-      Navigator.of(context).pop();
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Falha ao conectar ao dispositivo.')),
-      );
+  Future<void> _connectToDevice(BluetoothDevice device) async {
+    _stopScan(); // Stop scanning before attempting to connect
+    // Show a loading indicator or feedback to the user
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Conectando a ${device.platformName}...')),
+    );
+    try {
+      await widget.bluetoothService.connectToDevice(device);
+      // Listen to connection state changes specifically for the connection attempt
+      // You might already have a global listener in your service, adapt as needed
+      var sub = device.connectionState.listen((state) {
+        if (mounted) { // Check if the widget is still in the tree
+          if (state == BluetoothConnectionState.connected) {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content: Text('Conectado a ${device.platformName}!')),
+            );
+            Navigator.pop(
+                context); // Go back to the previous screen on successful connection
+          } else if (state == BluetoothConnectionState.disconnected) {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content: Text(
+                      'Falha ao conectar a ${device.platformName}.')),
+            );
+          }
+        }
+      });
+      // Consider a timeout for the subscription or a more robust way to handle this
+      // For example, if connectToDevice itself updates a stream that indicates success/failure.
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao conectar: $e')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Combine connected device with scanned devices, ensuring no duplicates
+    // and potentially prioritizing the connected device.
+    List<BluetoothDevice> displayDevices = [];
+    Set<String> displayedIds = {}; // To handle de-duplication
+
+    // Add connected device first if it exists
+    if (_currentlyConnectedDevice != null) {
+      displayDevices.add(_currentlyConnectedDevice!);
+      displayedIds.add(_currentlyConnectedDevice!.remoteId.toString());
+    }
+
+    // Add scanned devices, avoiding duplicates
+    for (var device in _scannedDevices) {
+      if (!displayedIds.contains(device.remoteId.toString())) {
+        displayDevices.add(device);
+        displayedIds.add(device.remoteId.toString());
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Conectar Dispositivo'),
+        title: const Text('Dispositivos Bluetooth'),
         actions: [
-          StreamBuilder<bool>(
-            stream: FlutterBluePlus.isScanning,
-            initialData: false,
-            builder: (c, snapshot) {
-              final isScanning = snapshot.data ?? false;
-              return IconButton(
-                icon: isScanning 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) 
-                    : const Icon(Icons.search),
-                onPressed: _checkPermissionsAndScan,
-              );
-            },
+          _isScanning
+              ? IconButton(
+            icon: const Icon(Icons.stop_circle_outlined),
+            tooltip: 'Parar Busca',
+            onPressed: _stopScan,
+          )
+              : IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Buscar Novamente',
+            onPressed: _startScan,
           ),
         ],
       ),
-      // ATUALIZAÇÃO: Adicionado RefreshIndicator para permitir "puxar para atualizar".
-      body: RefreshIndicator(
-        onRefresh: _checkPermissionsAndScan,
-        child: StreamBuilder<List<ScanResult>>(
-          stream: widget.service.scanResults,
-          initialData: const [],
-          builder: (c, snapshot) {
-            // ATUALIZAÇÃO: Adicionado log para cada vez que o stream atualiza.
-            print("[LOG] Stream de resultados atualizado. Encontrados: ${snapshot.data?.length ?? 0} dispositivos.");
-
-            if (snapshot.data!.isEmpty) {
-              return const Center(
-                child: Text("Nenhum dispositivo encontrado.\nVerifique se o dispositivo está ligado e anunciando.\nPuxe para baixo para escanear novamente.", textAlign: TextAlign.center),
-              );
-            }
-            return ListView(
-              // ATUALIZAÇÃO: Removido o filtro `.where()` para mostrar TODOS os dispositivos.
-              children: (snapshot.data ?? [])
-                  .map(
-                    (r) {
-                      // ATUALIZAÇÃO: Adicionado log para cada dispositivo na lista.
-                      print("[LOG] Dispositivo encontrado: Nome: '${r.device.platformName}', ID: ${r.device.remoteId}");
-                      return ListTile(
-                        title: Text(r.device.platformName.isNotEmpty ? r.device.platformName : "Dispositivo Desconhecido"),
-                        subtitle: Text(r.device.remoteId.toString()),
-                        trailing: ElevatedButton(
-                          child: const Text('Conectar'),
-                          onPressed: () => _connectToDevice(r.device),
-                        ),
-                      );
-                    }
+      body: Column(
+        children: [
+          if (_isScanning)
+            const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2)),
+                  SizedBox(width: 10),
+                  Text('Buscando dispositivos...'),
+                ],
+              ),
+            ),
+          Expanded(
+            child: displayDevices.isEmpty && !_isScanning
+                ? Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0), // Adjust value as needed
+                child: Text(
+                  'Nenhum dispositivo encontrado. Toque no ícone de atualizar para buscar novamente.', // Updated text slightly
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16.0, color: Colors.grey[600]),
+                ),
+              ),
+            )
+                : ListView.builder(
+              itemCount: displayDevices.length,
+              itemBuilder: (context, index) {
+                final device = displayDevices[index];
+                final deviceName = device.platformName.isNotEmpty
+                    ? device.platformName
+                    : 'Dispositivo Desconhecido';
+                final bool isConnected = _currentlyConnectedDevice?.remoteId ==
+                    device.remoteId;
+                return ListTile(
+                  leading: Icon(
+                    isConnected ? Icons.bluetooth_connected : Icons.bluetooth_drive,
+                    color: isConnected ? Colors.green : null,
+                  ),
+                  title: Text(deviceName),
+                  subtitle: Text(device.remoteId.toString()),
+                  trailing: isConnected
+                      ? ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red[600]),
+                    onPressed: () {
+                      widget.bluetoothService.disconnectFromDevice();
+                    },
+                    child: const Text('Desconectar'),
                   )
-                  .toList(),
-            );
-          },
-        ),
+                      : ElevatedButton(
+                    onPressed: () {
+                      _connectToDevice(device);
+                    },
+                    child: const Text('Conectar'),
+                  ),
+                  tileColor: isConnected ? Colors.green.withOpacity(0.1) : null,
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

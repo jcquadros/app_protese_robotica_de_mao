@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:mao_robotica_app/models/hand_command.dart';
 
 /// Tela para o controle individual dos dedos de uma mão robótica.
 class FingerControlScreen extends StatefulWidget {
   /// Callback que envia o comando formatado, ex: "INDICADOR:80".
-  final Function(String) onSendCommand;
+  final Function(HandCommand) onSendCommand;
 
   const FingerControlScreen({super.key, required this.onSendCommand});
 
@@ -44,7 +45,14 @@ class _FingerControlScreenState extends State<FingerControlScreen> {
 
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 250), () {
-      String command = "${_selectedFinger!.toUpperCase()}:${value.toInt()}";
+      var command = HandCommand(
+          thumb: _fingerValues["Polegar"]?.truncate() ?? 0,
+          index: _fingerValues["Indicador"]?.truncate() ?? 0,
+          middle: _fingerValues["Médio"]?.truncate() ?? 0,
+          ring: _fingerValues["Anelar"]?.truncate() ?? 0,
+          pinky: _fingerValues["Mínimo"]?.truncate() ?? 0
+      );
+
       widget.onSendCommand(command);
     });
   }

@@ -1,101 +1,183 @@
 import 'dart:async';
-import 'dart:convert';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import '../constants.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:rxdart/rxdart.dart';
 
 /// Uma classe de serviço para gerir toda a lógica de comunicação Bluetooth.
-class AppBluetoothService {
-  /// Stream que emite os resultados do escaneamento de dispositivos.
-  Stream<List<ScanResult>> get scanResults => FlutterBluePlus.scanResults;
-  
-  // ATUALIZAÇÃO: Usamos nosso próprio controller para ter controle total do estado.
-  final StreamController<BluetoothConnectionState> _connectionStateController =
-      StreamController.broadcast();
-  
-  /// Stream que emite o estado da conexão do dispositivo atualmente conectado.
-  Stream<BluetoothConnectionState> get connectionStateStream =>
-      _connectionStateController.stream;
-
+class AppBluetoothService extends ChangeNotifier {
+  final Guid _serviceUuid = Guid("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
+  final Guid _characteristicUuid = Guid("beb5483e-36e1-4688-b7f5-ea07361b26a8");
   BluetoothDevice? _connectedDevice;
-  BluetoothCharacteristic? _targetCharacteristic;
 
-  /// Inicia o escaneamento por dispositivos BLE por 5 segundos.
-  void startScan() {
-    FlutterBluePlus.startScan(timeout: const Duration(seconds: 5));
+  final BehaviorSubject<BluetoothAdapterState> _adapterStateController = BehaviorSubject<BluetoothAdapterState>.seeded(BluetoothAdapterState.unknown);
+  Stream<BluetoothAdapterState> get adapterState => _adapterStateController.stream;
+  BluetoothAdapterState get currentAdapterState => _adapterStateController.value;
+
+  final BehaviorSubject<BluetoothConnectionState> _connectionStateController = BehaviorSubject<BluetoothConnectionState>.seeded(BluetoothConnectionState.disconnected);
+  Stream<BluetoothConnectionState> get connectionState => _connectionStateController.stream;
+  BluetoothConnectionState get currentConnectionState => _connectionStateController.value;
+
+  BluetoothDevice? get connectedDevice => _connectedDevice;
+
+  StreamSubscription<BluetoothAdapterState>? _adapterStateSubscription;
+  StreamSubscription<BluetoothConnectionState>? _connectionStateSubscription;
+
+  AppBluetoothService() {
+    _initializeBluetoothMonitoring();
   }
 
-  /// Para o escaneamento por dispositivos BLE.
+  Future<void> _initializeBluetoothMonitoring() async {
+    if (await FlutterBluePlus.isSupported == false) {
+      print("Bluetooth not supported by this device");
+      _adapterStateController.add(BluetoothAdapterState.unavailable);
+      return;
+    }
+
+    _adapterStateSubscription = FlutterBluePlus.adapterState.listen(
+            (BluetoothAdapterState state) {
+          print("Adapter State Changed: $state");
+          _adapterStateController.add(state);
+
+          if (state == BluetoothAdapterState.off) {
+            // Optional: Stop scan, disconnect, clear device list if Bluetooth turns off
+            stopScan();
+          } else if (state == BluetoothAdapterState.on) {
+            // Optional: You might want to trigger an automatic scan or other actions
+            // when Bluetooth is turned back on.
+          }
+        },
+        onError: (dynamic error) {
+          print("Error listening to adapter state: $error");
+          _adapterStateController.add(BluetoothAdapterState.unknown); // Or handle error appropriately
+        }
+    );
+  }
+
+  /// Inicia o escaneamento por dispositivos BLE.
+  void startScan() async {
+    await _requestPermissions();
+
+    await FlutterBluePlus.startScan(
+        timeout: Duration(seconds: 15)
+    );
+  }
+
   void stopScan() {
     FlutterBluePlus.stopScan();
   }
 
-  /// Tenta conectar-se a um dispositivo e descobrir o serviço e a característica corretos.
-  Future<bool> connectToDevice(BluetoothDevice device) async {
-    stopScan();
+  Future<void> _requestPermissions() async {
+    await [
+      Permission.bluetooth,
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
+      Permission.location,
+    ].request();
+  }
+
+  Future<void> connectToDevice(BluetoothDevice device) async {
     try {
-      // Emitimos o estado 'conectando' para a UI.
-      _connectionStateController.add(BluetoothConnectionState.connecting);
-      await device.connect();
+      // Cancel any previous connection
+      await disconnectFromDevice();
+
+      // Listen to the device's connection state stream
+      _connectionStateSubscription = device.connectionState.listen((BluetoothConnectionState state) {
+        _connectionStateController.add(state);
+
+        if (state == BluetoothConnectionState.disconnected) {
+          _connectedDevice = null; // And this
+          // ...
+        }});
+
+      await device.connect(timeout: const Duration(seconds: 10));
       _connectedDevice = device;
-      
-      // Descobre os serviços e, se for bem-sucedido, atualiza o estado.
-      await _discoverServices();
-      
-      return _targetCharacteristic != null;
+      print("Connected to device: ${device.platformName}");
     } catch (e) {
-      print("Erro ao conectar: $e");
-      _connectionStateController.add(BluetoothConnectionState.disconnected);
-      return false;
+      print("Error connecting: $e");
     }
   }
 
-  /// Desconecta do dispositivo atual.
-  void disconnect() {
-    _connectedDevice?.disconnect();
-    _connectedDevice = null;
-    _targetCharacteristic = null;
-    _connectionStateController.add(BluetoothConnectionState.disconnected);
-  }
+  Future<void> disconnectFromDevice({bool clearUserRequest = true}) async {
+    if (_connectedDevice == null) {
+      print("No device is currently connected to disconnect from.");
+      if (_connectionStateController.value != BluetoothConnectionState.disconnected) {
+        // Ensure state consistency if called erroneously
+        _connectionStateController.add(BluetoothConnectionState.disconnected);
+      }
+      return;
+    }
 
-  /// Procura pelo serviço e característica específicos no dispositivo conectado.
-  Future<void> _discoverServices() async {
-    if (_connectedDevice == null) return;
+    final deviceToDisconnect = _connectedDevice!; // Capture for logging after potential nullification
+    print("Disconnecting from ${deviceToDisconnect.platformName} (${deviceToDisconnect.remoteId})...");
 
     try {
-      List<BluetoothService> services = await _connectedDevice!.discoverServices();
-      for (var service in services) {
-        if (service.uuid.toString() == SERVICE_UUID) {
-          for (var characteristic in service.characteristics) {
-            if (characteristic.uuid.toString() == CHARACTERISTIC_UUID) {
-              _targetCharacteristic = characteristic;
-              print("Característica encontrada!");
-              
-              // ATUALIZAÇÃO: SÓ AGORA nós emitimos o estado 'conectado'.
-              _connectionStateController.add(BluetoothConnectionState.connected);
-              return;
-            }
+      await deviceToDisconnect.disconnect();
+      // The device.connectionState listener (if still active) should update the
+      // _connectionStateController to BluetoothConnectionState.disconnected.
+      // If the disconnect call completes, it's a strong indication of success.
+      print("${deviceToDisconnect.platformName} disconnect call initiated successfully.");
+      // We don't nullify _connectedDevice here directly; let the stream listener handle it
+      // to maintain a single source of truth for that state change.
+    } catch (e) {
+      print("Error during disconnect call for ${deviceToDisconnect.platformName}: $e");
+      // If the disconnect call itself fails, it's possible the device is still connected
+      // or the connection state is indeterminate from this call alone.
+      // Rely on the connectionState stream or assume disconnected if it's a critical error.
+      // For robustness, if an error occurs here, we might force the state.
+      if (_connectionStateController.value != BluetoothConnectionState.disconnected) {
+        _connectionStateController.add(BluetoothConnectionState.disconnected);
+      }
+      if (_connectedDevice?.remoteId == deviceToDisconnect.remoteId) {
+        _connectedDevice = null; // Clear if it's still this device
+      }
+    } finally {
+      // It's crucial to cancel the subscription to the device's connection state
+      // once we intend to disconnect, to prevent old listeners from interfering
+      // or trying to manage a device we no longer care about.
+      if (_connectedDevice?.remoteId == deviceToDisconnect.remoteId || clearUserRequest) {
+        // Only cancel if it's still the same device, or if it's a user-initiated disconnect.
+        await _connectionStateSubscription?.cancel();
+        _connectionStateSubscription = null;
+        if (clearUserRequest) {
+          // If it's a user request, we definitely clear the connected device reference
+          // as the intention is to be fully disconnected.
+          _connectedDevice = null;
+          // Ensure the state reflects disconnected if it hasn't already by the stream
+          if(_connectionStateController.value != BluetoothConnectionState.disconnected) {
+            _connectionStateController.add(BluetoothConnectionState.disconnected);
           }
         }
       }
-    } catch (e) {
-      print("Erro ao descobrir serviços: $e");
-      _connectionStateController.add(BluetoothConnectionState.disconnected);
     }
   }
 
-  /// Envia um comando de texto para a mão robótica.
-  void sendCommand(String command) {
-    if (_targetCharacteristic != null) {
-      List<int> bytes = utf8.encode(command);
-      _targetCharacteristic!.write(bytes);
-      print("Comando enviado: $command");
-    } else {
-      print("Nenhuma característica alvo encontrada para enviar comando.");
-    }
-  }
-
-  /// Limpa os recursos do controller ao final do ciclo de vida.
+  @override
   void dispose() {
-    _connectionStateController.close();
+    FlutterBluePlus.stopScan();
+    _adapterStateSubscription?.cancel();
+    _connectionStateSubscription?.cancel();
+    _connectedDevice?.disconnect();
+    super.dispose();
+  }
+
+  void sendMessage(List<int> bytes) async {
+    // Discover services
+    List<BluetoothService> services = await _connectedDevice
+        ?.discoverServices() ?? [];
+    for (var service in services) {
+      if (service.uuid == _serviceUuid) {
+        print("Found service: ${service.uuid}");
+
+        // Look for characteristic
+        for (var characteristic in service.characteristics) {
+          if (characteristic.uuid == _characteristicUuid) {
+            print("Found characteristic, writing...");
+            await characteristic.write(bytes, withoutResponse: false);
+          }
+        }
+      }
+    }
   }
 }

@@ -1,31 +1,14 @@
 import 'package:flutter/material.dart';
-import '../widgets/gesture_card.dart'; // Importa o widget de cartão reutilizável.
+import 'package:mao_robotica_app/models/hand_command.dart';
+import '../constants/predefined_commands.dart';
+import '../widgets/gesture_card.dart';
 
 /// Uma tela que exibe uma grade de gestos pré-definidos que podem ser enviados.
 class GesturesScreen extends StatelessWidget {
   /// Callback para enviar o comando de um gesto específico quando um cartão é tocado.
-  final Function(String) onSendCommand;
+  final Function(HandCommand) onSendCommand;
   
   GesturesScreen({super.key, required this.onSendCommand});
-
-  /// Lista de dados que define cada gesto, incluindo nome, imagem e o comando a ser enviado.
-  final List<Map<String, String>> gestures = [
-    {
-      'name': 'Faz o L',
-      'image': 'assets/images/fazoele.png',
-      'command': 'FAZOELE',
-    },
-    {'name': 'Joia', 'image': 'assets/images/joia.png', 'command': 'JOIA'},
-    {'name': 'Paz', 'image': 'assets/images/paz.png', 'command': 'PAZ'},
-    {'name': 'Rock', 'image': 'assets/images/rock.png', 'command': 'ROCK'},
-    {'name': 'OK', 'image': 'assets/images/ok.png', 'command': 'OK'},
-    {
-      'name': 'Apontar',
-      'image': 'assets/images/apontar.png',
-      'command': 'APONTAR',
-    },
-    {'name': 'Parar', 'image': 'assets/images/parar.png', 'command': 'PARAR'},
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -40,9 +23,9 @@ class GesturesScreen extends StatelessWidget {
         mainAxisSpacing: 16.0,
         childAspectRatio: 0.85,
       ),
-      itemCount: gestures.length,
+      itemCount: predefinedGestures.length,
       itemBuilder: (context, index) {
-        final gesture = gestures[index];
+        final gesture = predefinedGestures[index];
         // Para cada item na lista de gestos, cria um GestureCard.
         return GestureCard(
           name: gesture['name']!,

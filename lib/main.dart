@@ -1,19 +1,84 @@
+import 'dart:async';
+import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import 'services/bluetooth_service.dart';
-import 'screens/gestures_screen.dart';
-import 'screens/finger_control_screen.dart';
-import 'screens/voice_control_screen.dart';
-import 'screens/bluetooth_connection_screen.dart';
 
-/// Ponto de entrada principal da aplicação Flutter.
+import 'package:mao_robotica_app/screens/bluetooth_not_enabled_screen.dart';
+import 'package:mao_robotica_app/screens/main_screen.dart';
+import 'services/bluetooth_service.dart';
+
+
 void main() {
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => AppBluetoothService(),
+      child: const MyApp(),
+    ),
+  );
 }
 
-/// O widget raiz da aplicação.
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  StreamSubscription<BluetoothAdapterState>? _adapterStateSubscription;
+  bool _isBluetoothOffPageVisible = true;
+
+  @override
+  void initState() {
+    super.initState();
+    final bluetoothService = Provider.of<AppBluetoothService>(
+        context, listen: false);
+
+    // Initial check (important for when app starts with Bluetooth off)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handleAdapterStateChange(bluetoothService.currentAdapterState);
+    });
+
+    _adapterStateSubscription = bluetoothService.adapterState.listen(_handleAdapterStateChange);
+  }
+
+  void _handleAdapterStateChange(BluetoothAdapterState state) {
+    if (mounted) {
+      if (state == BluetoothAdapterState.on) {
+        if (_isBluetoothOffPageVisible) {
+          navigatorKey.currentState?.pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) =>
+                MainScreen(
+                    bluetoothService: Provider.of<AppBluetoothService>(context, listen: false),)
+                ),
+                (route) => false,
+          );
+          setState(() {
+            _isBluetoothOffPageVisible = false;
+          });
+        }
+      }
+      else {
+        if (!_isBluetoothOffPageVisible) {
+          navigatorKey.currentState?.pushAndRemoveUntil(
+            MaterialPageRoute(
+                builder: (_) => const BluetoothNotEnabledScreen()),
+                (route) => false,
+          );
+          setState(() {
+            _isBluetoothOffPageVisible = true;
+          });
+        }
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _adapterStateSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,78 +91,17 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       debugShowCheckedModeBanner: false,
-      home: MainScreen(bluetoothService: AppBluetoothService()), // Usa a classe renomeada
-    );
-  }
-}
+      home: Consumer<AppBluetoothService>(
+        builder: (context, bluetoothService, child) {
+          final initialState = bluetoothService.currentAdapterState;
 
-/// A tela principal que contém a navegação por abas.
-class MainScreen extends StatefulWidget {
-  final AppBluetoothService bluetoothService; // Usa a classe renomeada
-  const MainScreen({super.key, required this.bluetoothService});
+          if (initialState == BluetoothAdapterState.on) {
+            _isBluetoothOffPageVisible = false;
+            return MainScreen(bluetoothService: bluetoothService);
+          }
 
-  @override
-  State<MainScreen> createState() => _MainScreenState();
-}
-
-class _MainScreenState extends State<MainScreen> {
-  
-  /// Wrapper para a função de envio de comando do serviço.
-  void _sendCommand(String command) {
-    widget.bluetoothService.sendCommand(command);
-    // O feedback visual pode ser adicionado aqui, se desejado.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Simulando envio: $command'), duration: const Duration(seconds: 1)),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Controle Mão Robótica'),
-          actions: [
-            StreamBuilder<BluetoothConnectionState>(
-              stream: widget.bluetoothService.connectionStateStream,
-              initialData: BluetoothConnectionState.disconnected,
-              builder: (c, snapshot) {
-                IconData icon;
-                Color color;
-                if (snapshot.data == BluetoothConnectionState.connected) {
-                  icon = Icons.bluetooth_connected;
-                  color = Colors.lightBlueAccent;
-                } else {
-                  icon = Icons.bluetooth_disabled;
-                  color = Colors.grey;
-                }
-                return IconButton(
-                  icon: Icon(icon, color: color),
-                  onPressed: () {
-                    Navigator.of(context).push(MaterialPageRoute(
-                        builder: (context) =>
-                            BluetoothConnectionScreen(service: widget.bluetoothService)));
-                  },
-                );
-              },
-            ),
-          ],
-          bottom: const TabBar(
-            tabs: [
-              Tab(icon: Icon(Icons.sign_language), text: 'Gestos'),
-              Tab(icon: Icon(Icons.fingerprint), text: 'Dedos'),
-              Tab(icon: Icon(Icons.mic), text: 'Voz'),
-            ],
-          ),
-        ),
-        body: TabBarView(
-          children: [
-            GesturesScreen(onSendCommand: _sendCommand),
-            FingerControlScreen(onSendCommand: _sendCommand),
-            VoiceControlScreen(onSendCommand: _sendCommand),
-          ],
-        ),
+          return const BluetoothNotEnabledScreen();
+        },
       ),
     );
   }

@@ -1,14 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:mao_robotica_app/constants/predefined_commands.dart';
+import 'package:mao_robotica_app/models/hand_command.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:http/http.dart' as http;
-import '../constants.dart'; // Importa nossas constantes
+import '../constants/envs.dart';
 
 /// Tela que permite ao usuário controlar a mão robótica usando comandos de voz.
 class VoiceControlScreen extends StatefulWidget {
   /// Callback para enviar o comando final interpretado.
-  final Function(String) onSendCommand;
+  final Function(HandCommand) onSendCommand;
   const VoiceControlScreen({super.key, required this.onSendCommand});
 
   @override
@@ -22,6 +24,11 @@ class _VoiceControlScreenState extends State<VoiceControlScreen> {
   bool _isListening = false;
   bool _isProcessing = false;
   String _lastWords = "";
+
+  final _jsonGestures = jsonEncode(predefinedGestures.map((gesture) => {
+    'name': gesture['name'],
+    'command': gesture['command'],
+  }).toList());
 
   @override
   void initState() {
@@ -114,11 +121,15 @@ class _VoiceControlScreenState extends State<VoiceControlScreen> {
     }
 
     final String prompt = """
-      Você é um controlador de uma mão robótica. Sua única função é converter uma frase em um comando específico.
-      Os comandos de gestos válidos são: JOIA, PAZ, ROCK, OK, APONTAR, PARAR, FAZOELE.
-      Os comandos de dedos individuais seguem o formato NOME_DEDO:VALOR, onde o valor é de 0 a 100. Os nomes dos dedos são: POLEGAR, INDICADOR, MEDIO, ANELAR, MINIMO.
-      Exemplos: "Dobre o dedo indicador até a metade" -> INDICADOR:50. "Estique o polegar" -> POLEGAR:0. "Sinal de rock" -> ROCK.
-      Responda APENAS com o comando. Se não entender a frase, responda com "UNKNOWN".
+      Você é um assistente que recebe um comando de voz relacionado a gestos de mão e deve retornar apenas o nome de um dos seguintes gestos:.
+      
+      $_jsonGestures
+      
+      - 100 significa o dedo totalmente fechado
+      - 0 significa o dedo totalmente estendido
+      
+      Com base na frase abaixo, retorne o nome do comando que está mais relacionado:
+          
       Frase para converter: "$text"
     """;
 
@@ -133,14 +144,12 @@ class _VoiceControlScreenState extends State<VoiceControlScreen> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        String command = data['candidates'][0]['content']['parts'][0]['text'].trim();
-        
-        if (command != "UNKNOWN") {
-          widget.onSendCommand(command);
-          _statusText = "Comando '$command' enviado!";
-        } else {
-          _statusText = "Não entendi o comando. Tente novamente.";
-        }
+
+        String responseString = data['candidates'][0]['content']['parts'][0]['text'].trim().replaceAll("json", "").replaceAll("`", "");
+
+        HandCommand command = predefinedGestures.firstWhere((gesture) => gesture['name'] == responseString, orElse: () => { 'command': HandCommand() })['command'];
+
+        widget.onSendCommand(command);
       } else {
         _statusText = "Erro na API do Gemini: ${response.body}";
       }
