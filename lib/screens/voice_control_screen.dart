@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:mao_robotica_app/constants/predefined_commands.dart';
 import 'package:mao_robotica_app/models/hand_command.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:http/http.dart' as http;
-import '../constants.dart'; // Importa nossas constantes
+import '../constants.dart';
 
 /// Tela que permite ao usuário controlar a mão robótica usando comandos de voz.
 class VoiceControlScreen extends StatefulWidget {
@@ -23,6 +24,11 @@ class _VoiceControlScreenState extends State<VoiceControlScreen> {
   bool _isListening = false;
   bool _isProcessing = false;
   String _lastWords = "";
+
+  final _jsonGestures = jsonEncode(predefinedGestures.map((gesture) => {
+    'name': gesture['name'],
+    'command': gesture['command'],
+  }).toList());
 
   @override
   void initState() {
@@ -115,25 +121,15 @@ class _VoiceControlScreenState extends State<VoiceControlScreen> {
     }
 
     final String prompt = """
-      Você é um assistente que recebe um comando de voz relacionado a gestos de mão e deve retornar um objeto JSON com os valores de cada dedo da mão entre 0 e 100.
+      Você é um assistente que recebe um comando de voz relacionado a gestos de mão e deve retornar apenas o nome de um dos seguintes gestos:.
       
-      Cada comando de voz representa uma posição da mão. O JSON deve conter os seguintes campos inteiros (de 0 a 100): `thumb`, `index`, `middle`, `ring`, `pinky`.
+      $_jsonGestures
       
-      Exemplos:
       - 100 significa o dedo totalmente fechado
       - 0 significa o dedo totalmente estendido
       
-      Com base na descrição do comando de voz, estime os valores de cada dedo e retorne apenas um JSON com os campos `thumb`, `index`, `middle`, `ring`, `pinky`.
-      
-      Exemplo de saída esperada:
-      {
-        "thumb": 100,
-        "index": 100,
-        "middle": 0,
-        "ring": 0,
-        "pinky": 0
-      }
-      
+      Com base na frase abaixo, retorne o nome do comando que está mais relacionado:
+          
       Frase para converter: "$text"
     """;
 
@@ -150,8 +146,8 @@ class _VoiceControlScreenState extends State<VoiceControlScreen> {
         final data = jsonDecode(response.body);
 
         String responseString = data['candidates'][0]['content']['parts'][0]['text'].trim().replaceAll("json", "").replaceAll("`", "");
-        Map<String, dynamic> jsonMap = jsonDecode(responseString);
-        var command = HandCommand.fromJson(jsonMap);
+
+        var command = predefinedGestures.firstWhere((gesture) => gesture['name'] == responseString, orElse: () => predefinedGestures.last)['command'];
 
         widget.onSendCommand(command);
       } else {

@@ -6,11 +6,11 @@ class HandCommand {
   final int pinky;
 
   HandCommand({
-    required this.thumb,
-    required this.index,
-    required this.middle,
-    required this.ring,
-    required this.pinky
+    this.thumb = 0,
+    this.index = 0,
+    this.middle = 0,
+    this.ring = 0,
+    this.pinky = 0
   }) :
     assert(_isValid(thumb), 'thumb must be between 0 and 100'),
     assert(_isValid(index), 'index must be between 0 and 100'),
