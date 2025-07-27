@@ -17,28 +17,59 @@ class BluetoothConnectionScreen extends StatefulWidget {
 }
 
 class _BluetoothConnectionScreenState extends State<BluetoothConnectionScreen> {
-  List<BluetoothDevice> _availableDevices = [];
+  List<BluetoothDevice> _scannedDevices = [];
   StreamSubscription<List<ScanResult>>? _scanResultsSubscription;
   StreamSubscription<bool>? _isScanningSubscription;
+  StreamSubscription<BluetoothConnectionState>? _connectionStateSubscription;
   bool _isScanning = false;
+  BluetoothDevice? _currentlyConnectedDevice;
 
   @override
   void initState() {
     super.initState();
+
+    _currentlyConnectedDevice = widget.bluetoothService.connectedDevice;
+
+    _scanResultsSubscription =
+        FlutterBluePlus.scanResults.listen((results) {
+          if (mounted) {
+            setState(() {
+              _scannedDevices = results
+                  .where((result) =>
+              result.device.platformName.isNotEmpty ||
+                  result.advertisementData.advName.isNotEmpty)
+                  .map((result) => result.device)
+                  .toList();
+            });
+          }
+        });
+
+    // Listen to connection state changes to update the _currentlyConnectedDevice
+    _connectionStateSubscription = widget.bluetoothService.connectionState.listen((state) {
+      if (mounted) {
+        setState(() {
+          if (state == BluetoothConnectionState.connected) {
+            _currentlyConnectedDevice = widget.bluetoothService.connectedDevice;
+          } else if (state == BluetoothConnectionState.disconnected) {
+            _currentlyConnectedDevice = null;
+          }
+        });
+      }
+    });
 
     _scanResultsSubscription =
         FlutterBluePlus.onScanResults.listen((results) {
           // Filter out devices without a name to keep the list cleaner
           // And update the list of available devices
           setState(() {
-            _availableDevices = results
+            _scannedDevices = results
                 .where((result) =>
             result.device.platformName.isNotEmpty ||
                 result.advertisementData.advName.isNotEmpty)
                 .map((result) => result.device)
                 .toList();
             // Simple de-duplication based on remoteId
-            _availableDevices = _availableDevices.toSet().toList();
+            _scannedDevices = _scannedDevices.toSet().toList();
           });
         });
 
@@ -114,6 +145,25 @@ class _BluetoothConnectionScreenState extends State<BluetoothConnectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Combine connected device with scanned devices, ensuring no duplicates
+    // and potentially prioritizing the connected device.
+    List<BluetoothDevice> displayDevices = [];
+    Set<String> displayedIds = {}; // To handle de-duplication
+
+    // Add connected device first if it exists
+    if (_currentlyConnectedDevice != null) {
+      displayDevices.add(_currentlyConnectedDevice!);
+      displayedIds.add(_currentlyConnectedDevice!.remoteId.toString());
+    }
+
+    // Add scanned devices, avoiding duplicates
+    for (var device in _scannedDevices) {
+      if (!displayedIds.contains(device.remoteId.toString())) {
+        displayDevices.add(device);
+        displayedIds.add(device.remoteId.toString());
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dispositivos Bluetooth'),
@@ -149,31 +199,48 @@ class _BluetoothConnectionScreenState extends State<BluetoothConnectionScreen> {
               ),
             ),
           Expanded(
-            child: _availableDevices.isEmpty && !_isScanning
-                ? const Center(
-              child: Text(
-                  'Nenhum dispositivo encontrado. Toque em buscar para tentar novamente.'),
+            child: displayDevices.isEmpty && !_isScanning
+                ? Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0), // Adjust value as needed
+                child: Text(
+                  'Nenhum dispositivo encontrado. Toque no ícone de atualizar para buscar novamente.', // Updated text slightly
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16.0, color: Colors.grey[600]),
+                ),
+              ),
             )
                 : ListView.builder(
-              itemCount: _availableDevices.length,
+              itemCount: displayDevices.length,
               itemBuilder: (context, index) {
-                final device = _availableDevices[index];
+                final device = displayDevices[index];
                 final deviceName = device.platformName.isNotEmpty
                     ? device.platformName
                     : 'Dispositivo Desconhecido';
+                final bool isConnected = _currentlyConnectedDevice?.remoteId ==
+                    device.remoteId;
                 return ListTile(
-                  leading: const Icon(Icons.bluetooth_drive),
-                  // Or other relevant icon
+                  leading: Icon(
+                    isConnected ? Icons.bluetooth_connected : Icons.bluetooth_drive,
+                    color: isConnected ? Colors.green : null,
+                  ),
                   title: Text(deviceName),
                   subtitle: Text(device.remoteId.toString()),
-                  trailing: ElevatedButton(
+                  trailing: isConnected
+                      ? ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red[600]),
+                    onPressed: () {
+                      widget.bluetoothService.disconnectFromDevice();
+                    },
+                    child: const Text('Desconectar'),
+                  )
+                      : ElevatedButton(
                     onPressed: () {
                       _connectToDevice(device);
                     },
                     child: const Text('Conectar'),
                   ),
-                  // You could add an onTap to show more details or RSSI
-                  // onTap: () => print('Tapped on ${device.platformName}'),
+                  tileColor: isConnected ? Colors.green.withOpacity(0.1) : null,
                 );
               },
             ),

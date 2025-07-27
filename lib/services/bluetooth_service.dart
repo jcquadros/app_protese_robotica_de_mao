@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -18,7 +19,10 @@ class AppBluetoothService extends ChangeNotifier {
   Stream<BluetoothConnectionState> get connectionState => _connectionStateController.stream;
   BluetoothConnectionState get currentConnectionState => _connectionStateController.value;
 
+  BluetoothDevice? get connectedDevice => _connectedDevice;
+
   StreamSubscription<BluetoothAdapterState>? _adapterStateSubscription;
+  StreamSubscription<BluetoothConnectionState>? _connectionStateSubscription;
 
   AppBluetoothService() {
     _initializeBluetoothMonitoring();
@@ -75,13 +79,17 @@ class AppBluetoothService extends ChangeNotifier {
 
   Future<void> connectToDevice(BluetoothDevice device) async {
     try {
-      // Cancel any previous connection state subscription
+      // Cancel any previous connection
+      await disconnectFromDevice();
 
       // Listen to the device's connection state stream
-      device.connectionState.listen((BluetoothConnectionState state) {
+      _connectionStateSubscription = device.connectionState.listen((BluetoothConnectionState state) {
         _connectionStateController.add(state);
-        },
-      );
+
+        if (state == BluetoothConnectionState.disconnected) {
+          _connectedDevice = null; // And this
+          // ...
+        }});
 
       await device.connect(timeout: const Duration(seconds: 10));
       _connectedDevice = device;
@@ -91,12 +99,67 @@ class AppBluetoothService extends ChangeNotifier {
     }
   }
 
+  Future<void> disconnectFromDevice({bool clearUserRequest = true}) async {
+    if (_connectedDevice == null) {
+      print("No device is currently connected to disconnect from.");
+      if (_connectionStateController.value != BluetoothConnectionState.disconnected) {
+        // Ensure state consistency if called erroneously
+        _connectionStateController.add(BluetoothConnectionState.disconnected);
+      }
+      return;
+    }
+
+    final deviceToDisconnect = _connectedDevice!; // Capture for logging after potential nullification
+    print("Disconnecting from ${deviceToDisconnect.platformName} (${deviceToDisconnect.remoteId})...");
+
+    try {
+      await deviceToDisconnect.disconnect();
+      // The device.connectionState listener (if still active) should update the
+      // _connectionStateController to BluetoothConnectionState.disconnected.
+      // If the disconnect call completes, it's a strong indication of success.
+      print("${deviceToDisconnect.platformName} disconnect call initiated successfully.");
+      // We don't nullify _connectedDevice here directly; let the stream listener handle it
+      // to maintain a single source of truth for that state change.
+    } catch (e) {
+      print("Error during disconnect call for ${deviceToDisconnect.platformName}: $e");
+      // If the disconnect call itself fails, it's possible the device is still connected
+      // or the connection state is indeterminate from this call alone.
+      // Rely on the connectionState stream or assume disconnected if it's a critical error.
+      // For robustness, if an error occurs here, we might force the state.
+      if (_connectionStateController.value != BluetoothConnectionState.disconnected) {
+        _connectionStateController.add(BluetoothConnectionState.disconnected);
+      }
+      if (_connectedDevice?.remoteId == deviceToDisconnect.remoteId) {
+        _connectedDevice = null; // Clear if it's still this device
+      }
+    } finally {
+      // It's crucial to cancel the subscription to the device's connection state
+      // once we intend to disconnect, to prevent old listeners from interfering
+      // or trying to manage a device we no longer care about.
+      if (_connectedDevice?.remoteId == deviceToDisconnect.remoteId || clearUserRequest) {
+        // Only cancel if it's still the same device, or if it's a user-initiated disconnect.
+        await _connectionStateSubscription?.cancel();
+        _connectionStateSubscription = null;
+        if (clearUserRequest) {
+          // If it's a user request, we definitely clear the connected device reference
+          // as the intention is to be fully disconnected.
+          _connectedDevice = null;
+          // Ensure the state reflects disconnected if it hasn't already by the stream
+          if(_connectionStateController.value != BluetoothConnectionState.disconnected) {
+            _connectionStateController.add(BluetoothConnectionState.disconnected);
+          }
+        }
+      }
+    }
+  }
+
   @override
   void dispose() {
-    super.dispose();
-    _adapterStateSubscription?.cancel();
     FlutterBluePlus.stopScan();
+    _adapterStateSubscription?.cancel();
+    _connectionStateSubscription?.cancel();
     _connectedDevice?.disconnect();
+    super.dispose();
   }
 
   void sendMessage(List<int> bytes) async {
