@@ -1,33 +1,37 @@
 import 'package:flutter/material.dart';
-
+import 'dart:io';
 /// Um widget reutilizável que exibe um cartão com a imagem e o nome de um gesto.
 ///
 /// É projetado para ser usado em uma grade, sendo totalmente interativo ao toque.
 class GestureCard extends StatelessWidget {
-  /// O nome do gesto a ser exibido abaixo da imagem.
   final String name;
-  /// O caminho para o arquivo de imagem do gesto (ex: 'assets/images/joia.png').
   final String imagePath;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress; 
+  final bool isAsset;
 
   const GestureCard({
     super.key,
     required this.name,
     required this.imagePath,
     required this.onTap,
+    this.onLongPress, 
+    this.isAsset = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    final imageWidget = isAsset
+        ? Image.asset(imagePath, fit: BoxFit.contain)
+        : Image.file(File(imagePath), fit: BoxFit.contain);
+
     return Card(
-      // Garante que o conteúdo (e o efeito de toque) seja cortado para
-      // respeitar as bordas arredondadas do cartão.
       clipBehavior: Clip.antiAlias,
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      // InkWell adiciona o efeito de "ripple" (onda) ao toque.
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress, // NOVO: Conectando o callback ao InkWell
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -36,7 +40,7 @@ class GestureCard extends StatelessWidget {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
-                child: Image.asset(imagePath, fit: BoxFit.contain),
+                child: imageWidget,
               ),
             ),
             Padding(

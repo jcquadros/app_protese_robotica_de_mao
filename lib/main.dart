@@ -8,14 +8,20 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:mao_robotica_app/screens/bluetooth_not_enabled_screen.dart';
 import 'package:mao_robotica_app/screens/location_not_enabled_screen.dart';
 import 'package:mao_robotica_app/screens/main_screen.dart';
+import 'services/gesture_service.dart';
 import 'services/bluetooth_service.dart';
 
 
 void main() {
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => AppBluetoothService(),
-      child: const MyApp(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => AppBluetoothService()),
+        ChangeNotifierProvider(
+          create: (context) => GestureService()..loadGestures(),
+        ),
+      ],
+      child: const MyApp(), // Seu widget principal
     ),
   );
 }
