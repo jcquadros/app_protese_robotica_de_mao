@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:mao_robotica_app/constants/predefined_commands.dart';
 import 'package:mao_robotica_app/models/hand_command.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import 'package:mao_robotica_app/services/gesture_service.dart';
+import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import '../constants/envs.dart';
 
@@ -24,11 +25,6 @@ class _VoiceControlScreenState extends State<VoiceControlScreen> {
   bool _isListening = false;
   bool _isProcessing = false;
   String _lastWords = "";
-
-  final _jsonGestures = jsonEncode(predefinedGestures.map((gesture) => {
-    'name': gesture['name'],
-    'command': gesture['command'],
-  }).toList());
 
   @override
   void initState() {
@@ -60,7 +56,7 @@ class _VoiceControlScreenState extends State<VoiceControlScreen> {
   /// Inicia a escuta do microfone e define os callbacks de resultado.
   void _startListening() async {
     if (!_speechEnabled) return;
-    
+
     setState(() {
       _isListening = true;
       _statusText = "Ouvindo...";
@@ -76,7 +72,7 @@ class _VoiceControlScreenState extends State<VoiceControlScreen> {
         if (result.finalResult) {
           String transcribedText = result.recognizedWords;
           if (transcribedText.isNotEmpty) {
-            if(mounted) {
+            if (mounted) {
               setState(() {
                 _isListening = false;
                 _isProcessing = true;
@@ -111,19 +107,40 @@ class _VoiceControlScreenState extends State<VoiceControlScreen> {
   /// Envia o texto para a API do Gemini para interpretação.
   Future<void> _interpretAndSendCommand(String text) async {
     if (GEMINI_API_KEY == "SUA_CHAVE_DE_API_AQUI") {
-       if(mounted) {
-         setState(() {
-           _statusText = "ERRO: Configure sua chave de API do Gemini!";
-           _isProcessing = false;
-         });
-       }
-       return;
+      if (mounted) {
+        setState(() {
+          _statusText = "ERRO: Configure sua chave de API do Gemini!";
+          _isProcessing = false;
+        });
+      }
+      return;
     }
 
-    final String prompt = """
+    final gestureService = Provider.of<GestureService>(context, listen: false);
+    final currentGestures = gestureService.gestures;
+
+    if (currentGestures.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _statusText =
+              "Nenhum gesto salvo. Crie um gesto na aba 'Dedos' primeiro.";
+          _isProcessing = false;
+        });
+      }
+      return;
+    }
+
+    final gesturesJsonString = jsonEncode(
+      currentGestures.map((g) {
+        return {'name': g.name, 'command': g.command.toJson()};
+      }).toList(),
+    );
+
+    final String prompt =
+        """
       Você é um assistente que recebe um comando de voz relacionado a gestos de mão e deve retornar apenas o nome de um dos seguintes gestos:.
       
-      $_jsonGestures
+      $gesturesJsonString
       
       - 100 significa o dedo totalmente fechado
       - 0 significa o dedo totalmente estendido
@@ -132,24 +149,41 @@ class _VoiceControlScreenState extends State<VoiceControlScreen> {
           
       Frase para converter: "$text"
     """;
-
+    print(prompt);
     try {
       final response = await http.post(
         Uri.parse(GEMINI_API_URL),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'contents': [{'parts': [{'text': prompt}]}]
+          'contents': [
+            {
+              'parts': [
+                {'text': prompt},
+              ],
+            },
+          ],
         }),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        String responseString = data['candidates'][0]['content']['parts'][0]['text'].trim().replaceAll("json", "").replaceAll("`", "");
+        String responseString =
+            data['candidates'][0]['content']['parts'][0]['text']
+                .trim()
+                .replaceAll("json", "")
+                .replaceAll("`", "");
 
-        HandCommand command = predefinedGestures.firstWhere((gesture) => gesture['name'] == responseString, orElse: () => { 'command': HandCommand() })['command'];
-
-        widget.onSendCommand(command);
+        try {
+          final matchedGesture = currentGestures.firstWhere(
+            (g) => g.name == responseString,
+          );
+          widget.onSendCommand(matchedGesture.command);
+          _statusText = 'Enviando gesto: "${matchedGesture.name}"';
+        } catch (e) {
+          // Lida com o caso da API retornar um nome de gesto que não existe
+          _statusText = 'Não consegui entender o gesto. Tente novamente.';
+        }
       } else {
         _statusText = "Erro na API do Gemini: ${response.body}";
       }
@@ -157,7 +191,7 @@ class _VoiceControlScreenState extends State<VoiceControlScreen> {
       _statusText = "Erro de conexão: $e";
     }
 
-    if(mounted) {
+    if (mounted) {
       setState(() {
         _isProcessing = false;
       });
@@ -193,11 +227,17 @@ class _VoiceControlScreenState extends State<VoiceControlScreen> {
           ),
           if (_lastWords.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20.0,
+                vertical: 10.0,
+              ),
               child: Text(
                 '"$_lastWords"',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontStyle: FontStyle.italic, color: Colors.white70),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontStyle: FontStyle.italic,
+                  color: Colors.white70,
+                ),
               ),
             ),
           const SizedBox(height: 20),

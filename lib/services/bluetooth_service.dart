@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:rxdart/rxdart.dart';
 
-/// Uma classe de serviço para gerir toda a lógica de comunicação Bluetooth.
+// Uma classe de serviço para gerir toda a lógica de comunicação Bluetooth.
 class AppBluetoothService extends ChangeNotifier {
   final Guid _serviceUuid = Guid("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
   final Guid _characteristicUuid = Guid("beb5483e-36e1-4688-b7f5-ea07361b26a8");
@@ -55,7 +56,7 @@ class AppBluetoothService extends ChangeNotifier {
     );
   }
 
-  /// Inicia o escaneamento por dispositivos BLE.
+  // Inicia o escaneamento por dispositivos BLE.
   void startScan() async {
     await _requestPermissions();
 
@@ -79,16 +80,12 @@ class AppBluetoothService extends ChangeNotifier {
 
   Future<void> connectToDevice(BluetoothDevice device) async {
     try {
-      // Cancel any previous connection
-      await disconnectFromDevice();
-
       // Listen to the device's connection state stream
       _connectionStateSubscription = device.connectionState.listen((BluetoothConnectionState state) {
         _connectionStateController.add(state);
 
         if (state == BluetoothConnectionState.disconnected) {
-          _connectedDevice = null; // And this
-          // ...
+          _connectedDevice = null;
         }});
 
       await device.connect(timeout: const Duration(seconds: 10));
@@ -103,10 +100,8 @@ class AppBluetoothService extends ChangeNotifier {
     if (_connectedDevice == null) {
       print("No device is currently connected to disconnect from.");
       if (_connectionStateController.value != BluetoothConnectionState.disconnected) {
-        // Ensure state consistency if called erroneously
         _connectionStateController.add(BluetoothConnectionState.disconnected);
       }
-      return;
     }
 
     final deviceToDisconnect = _connectedDevice!; // Capture for logging after potential nullification

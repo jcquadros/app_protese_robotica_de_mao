@@ -1,37 +1,86 @@
 import 'package:flutter/material.dart';
-import 'package:mao_robotica_app/models/hand_command.dart';
-import '../constants/predefined_commands.dart';
+import 'package:mao_robotica_app/models/gesture.dart';
+import 'package:mao_robotica_app/services/gesture_service.dart';
+import 'package:provider/provider.dart';
+
+import '../models/hand_command.dart';
 import '../widgets/gesture_card.dart';
 
-/// Uma tela que exibe uma grade de gestos pré-definidos que podem ser enviados.
 class GesturesScreen extends StatelessWidget {
-  /// Callback para enviar o comando de um gesto específico quando um cartão é tocado.
   final Function(HandCommand) onSendCommand;
-  
-  GesturesScreen({super.key, required this.onSendCommand});
+
+  const GesturesScreen({super.key, required this.onSendCommand});
+
+  void _showDeleteConfirmationDialog(BuildContext context, Gesture gesture) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text('Apagar Gesto'),
+          content: Text('Você tem certeza que deseja apagar o gesto "${gesture.name}"? Esta ação não pode ser desfeita.'),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Cancelar'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop(); // Fecha o diálogo
+              },
+            ),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: Text('Apagar'),
+              onPressed: () {
+                // Usa o Provider para acessar o serviço e apagar
+                Provider.of<GestureService>(context, listen: false)
+                    .deleteGesture(gesture.id);
+                Navigator.of(dialogContext).pop(); // Fecha o diálogo
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Gesto "${gesture.name}" apagado.')),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Usa GridView.builder para construir a grade de forma eficiente,
-    // criando os itens conforme eles se tornam visíveis na tela.
-    return GridView.builder(
-      padding: const EdgeInsets.all(16.0),
-      // Define a estrutura da grade: 2 colunas, espaçamentos e proporção dos itens.
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 16.0,
-        mainAxisSpacing: 16.0,
-        childAspectRatio: 0.85,
-      ),
-      itemCount: predefinedGestures.length,
-      itemBuilder: (context, index) {
-        final gesture = predefinedGestures[index];
-        // Para cada item na lista de gestos, cria um GestureCard.
-        return GestureCard(
-          name: gesture['name']!,
-          imagePath: gesture['image']!,
-          // Ao tocar no cartão, o comando específico do gesto é enviado.
-          onTap: () => onSendCommand(gesture['command']!),
+    // MODIFICADO: Usa um Consumer para ouvir as mudanças no GestureService
+    return Consumer<GestureService>(
+      builder: (context, gestureService, child) {
+        if (gestureService.gestures.isEmpty) {
+          return const Center(
+            child: Text(
+              'Nenhum gesto salvo.\nVá para a aba "Dedos" para criar um!',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          );
+        }
+
+        return GridView.builder(
+          padding: const EdgeInsets.all(16.0),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 16.0,
+            mainAxisSpacing: 16.0,
+            childAspectRatio: 0.85,
+          ),
+          itemCount: gestureService.gestures.length,
+          itemBuilder: (context, index) {
+            final gesture = gestureService.gestures[index];
+            return GestureCard(
+              name: gesture.name,
+              imagePath: gesture.imagePath,
+              isAsset: gesture.isPredefined,
+              onTap: () => onSendCommand(gesture.command),
+              onLongPress: () =>
+              gesture.isPredefined
+                  ? null
+                  : _showDeleteConfirmationDialog(context, gesture),
+            );
+          },
         );
       },
     );
