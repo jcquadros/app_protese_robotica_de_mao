@@ -155,7 +155,7 @@ class _BluetoothConnectionScreenState extends State<BluetoothConnectionScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao conectar: $e')),
+          SnackBar(content: Text('Erro ao desconectar: $e')),
         );
       }
     }
