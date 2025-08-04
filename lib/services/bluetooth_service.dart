@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:rxdart/rxdart.dart';
@@ -79,16 +80,12 @@ class AppBluetoothService extends ChangeNotifier {
 
   Future<void> connectToDevice(BluetoothDevice device) async {
     try {
-      // Cancel any previous connection
-      await disconnectFromDevice();
-
       // Listen to the device's connection state stream
       _connectionStateSubscription = device.connectionState.listen((BluetoothConnectionState state) {
         _connectionStateController.add(state);
 
         if (state == BluetoothConnectionState.disconnected) {
-          _connectedDevice = null; // And this
-          // ...
+          _connectedDevice = null;
         }});
 
       await device.connect(timeout: const Duration(seconds: 10));
@@ -106,7 +103,6 @@ class AppBluetoothService extends ChangeNotifier {
         // Ensure state consistency if called erroneously
         _connectionStateController.add(BluetoothConnectionState.disconnected);
       }
-      return;
     }
 
     final deviceToDisconnect = _connectedDevice!; // Capture for logging after potential nullification
