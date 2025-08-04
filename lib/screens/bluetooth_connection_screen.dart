@@ -144,7 +144,7 @@ class _BluetoothConnectionScreenState extends State<BluetoothConnectionScreen> {
   }
 
   Future<void> _disconnectFromDevice() async {
-    _stopScan(); // Stop scanning before attempting to connect
+    _stopScan(); // Stop scanning before attempting to disconnect
     // Show a loading indicator or feedback to the user
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Desconectando de ${widget.bluetoothService.connectedDevice?.platformName}...')),
