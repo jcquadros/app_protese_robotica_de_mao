@@ -1,17 +1,17 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:mao_robotica_app/models/gesture.dart';
 import 'package:mao_robotica_app/services/gesture_service.dart';
 import 'package:provider/provider.dart';
+
 import '../models/hand_command.dart';
 import '../widgets/gesture_card.dart';
-import 'package:mao_robotica_app/models/custom_gesture.dart';
 
 class GesturesScreen extends StatelessWidget {
   final Function(HandCommand) onSendCommand;
-  
-  GesturesScreen({super.key, required this.onSendCommand});
 
-  void _showDeleteConfirmationDialog(BuildContext context, CustomGesture gesture) {
+  const GesturesScreen({super.key, required this.onSendCommand});
+
+  void _showDeleteConfirmationDialog(BuildContext context, Gesture gesture) {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
@@ -58,7 +58,7 @@ class GesturesScreen extends StatelessWidget {
             ),
           );
         }
-        
+
         return GridView.builder(
           padding: const EdgeInsets.all(16.0),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -73,9 +73,12 @@ class GesturesScreen extends StatelessWidget {
             return GestureCard(
               name: gesture.name,
               imagePath: gesture.imagePath,
-              isAsset: false, 
+              isAsset: gesture.isPredefined,
               onTap: () => onSendCommand(gesture.command),
-              onLongPress: () => _showDeleteConfirmationDialog(context, gesture),
+              onLongPress: () =>
+              gesture.isPredefined
+                  ? null
+                  : _showDeleteConfirmationDialog(context, gesture),
             );
           },
         );
