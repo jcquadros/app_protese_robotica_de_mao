@@ -94,6 +94,10 @@ class _BluetoothConnectionScreenState extends State<BluetoothConnectionScreen> {
   }
 
   void _startScan() {
+    setState(() {
+      _isScanning = true;
+    });
+
     widget.bluetoothService.startScan();
   }
 
@@ -103,10 +107,12 @@ class _BluetoothConnectionScreenState extends State<BluetoothConnectionScreen> {
 
   Future<void> _connectToDevice(BluetoothDevice device) async {
     _stopScan(); // Stop scanning before attempting to connect
+
     // Show a loading indicator or feedback to the user
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Conectando a ${device.platformName}...')),
     );
+
     try {
       await widget.bluetoothService.connectToDevice(device);
       // Listen to connection state changes specifically for the connection attempt
@@ -131,8 +137,6 @@ class _BluetoothConnectionScreenState extends State<BluetoothConnectionScreen> {
           }
         }
       });
-      // Consider a timeout for the subscription or a more robust way to handle this
-      // For example, if connectToDevice itself updates a stream that indicates success/failure.
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -145,10 +149,12 @@ class _BluetoothConnectionScreenState extends State<BluetoothConnectionScreen> {
 
   Future<void> _disconnectFromDevice() async {
     _stopScan(); // Stop scanning before attempting to disconnect
+
     // Show a loading indicator or feedback to the user
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Desconectando de ${widget.bluetoothService.connectedDevice?.platformName}...')),
     );
+
     try {
       await widget.bluetoothService.disconnectFromDevice();
     } catch (e) {
@@ -159,6 +165,8 @@ class _BluetoothConnectionScreenState extends State<BluetoothConnectionScreen> {
         );
       }
     }
+
+    _startScan(); // Restart scanning after disconnecting
   }
 
   @override
