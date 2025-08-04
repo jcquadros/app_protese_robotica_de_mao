@@ -6,7 +6,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:rxdart/rxdart.dart';
 
-/// Uma classe de serviço para gerir toda a lógica de comunicação Bluetooth.
+// Uma classe de serviço para gerir toda a lógica de comunicação Bluetooth.
 class AppBluetoothService extends ChangeNotifier {
   final Guid _serviceUuid = Guid("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
   final Guid _characteristicUuid = Guid("beb5483e-36e1-4688-b7f5-ea07361b26a8");
@@ -56,7 +56,7 @@ class AppBluetoothService extends ChangeNotifier {
     );
   }
 
-  /// Inicia o escaneamento por dispositivos BLE.
+  // Inicia o escaneamento por dispositivos BLE.
   void startScan() async {
     await _requestPermissions();
 
@@ -100,7 +100,6 @@ class AppBluetoothService extends ChangeNotifier {
     if (_connectedDevice == null) {
       print("No device is currently connected to disconnect from.");
       if (_connectionStateController.value != BluetoothConnectionState.disconnected) {
-        // Ensure state consistency if called erroneously
         _connectionStateController.add(BluetoothConnectionState.disconnected);
       }
     }
