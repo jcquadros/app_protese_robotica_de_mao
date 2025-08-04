@@ -143,6 +143,24 @@ class _BluetoothConnectionScreenState extends State<BluetoothConnectionScreen> {
     }
   }
 
+  Future<void> _disconnectFromDevice() async {
+    _stopScan(); // Stop scanning before attempting to connect
+    // Show a loading indicator or feedback to the user
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Desconectando de ${widget.bluetoothService.connectedDevice?.platformName}...')),
+    );
+    try {
+      await widget.bluetoothService.disconnectFromDevice();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao conectar: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Combine connected device with scanned devices, ensuring no duplicates
@@ -185,7 +203,7 @@ class _BluetoothConnectionScreenState extends State<BluetoothConnectionScreen> {
         children: [
           if (_isScanning)
             const Padding(
-              padding: EdgeInsets.all(8.0),
+              padding: EdgeInsets.only(top: 10.0, right: 8.0, left: 8.0, bottom: 25.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -221,8 +239,8 @@ class _BluetoothConnectionScreenState extends State<BluetoothConnectionScreen> {
                     device.remoteId;
                 return ListTile(
                   leading: Icon(
-                    isConnected ? Icons.bluetooth_connected : Icons.bluetooth_drive,
-                    color: isConnected ? Colors.green : null,
+                    isConnected ? Icons.bluetooth_connected : Icons.bluetooth_searching,
+                    color: isConnected ? Colors.lightBlue : null,
                   ),
                   title: Text(deviceName),
                   subtitle: Text(device.remoteId.toString()),
@@ -230,9 +248,9 @@ class _BluetoothConnectionScreenState extends State<BluetoothConnectionScreen> {
                       ? ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.red[600]),
                     onPressed: () {
-                      widget.bluetoothService.disconnectFromDevice();
+                      _disconnectFromDevice();
                     },
-                    child: const Text('Desconectar'),
+                    child: const Text('Desconectar', style: TextStyle(color: Colors.white)),
                   )
                       : ElevatedButton(
                     onPressed: () {
@@ -240,7 +258,7 @@ class _BluetoothConnectionScreenState extends State<BluetoothConnectionScreen> {
                     },
                     child: const Text('Conectar'),
                   ),
-                  tileColor: isConnected ? Colors.green.withOpacity(0.1) : null,
+                  tileColor: isConnected ? Colors.lightBlueAccent.withValues(alpha: 0.07) : null,
                 );
               },
             ),
