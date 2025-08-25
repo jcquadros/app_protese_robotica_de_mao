@@ -1,7 +1,7 @@
 # app-protese-robotica-de-mao
 
 <p align="center">
-  <img src="https://skillicons.dev/icons?i=androidstudio,dart,flutter" /> <br/>
+  <img src="https://skillicons.dev/icons?i=androidstudio,dart,flutter" />
 </p>
 
 A new Flutter project.
