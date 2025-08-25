@@ -6,7 +6,7 @@
 
 Este repositório contém apenas o aplicativo móvel desenvolvido na disciplina Projeto Integrado de Computação II. O app controla a prótese de mão criada pelo grupo: comunica-se com um ESP32 que aciona 5 servomotores para tensionar e relaxar fios de pesca (produzindo a flexão dos dedos), enquanto elásticos promovem a extensão. A prótese possui independência de movimento entre os dedos e 3 graus de liberdade por dedo (flexão/extensão nas articulações metacarpofalângica, interfalângica proximal e interfalângica distal). Há também um sensor de pressão na palma para detectar quando a mão segura um objeto. Pelo aplicativo é possível executar gestos pré-definidos, criar gestos personalizados e usar comandos de voz para controlar a mão.
 
-<div center>
+<div align="center">
   <img src="./assets/docs/images/screenshot_1.png" alt="" width="30%"/>
   <img src="/assets/docs/images/screenshot_2.png" alt="" width="30%"/>
   <img src="/assets/docs/images/screenshot_3.png" alt="" width="30%"/>
