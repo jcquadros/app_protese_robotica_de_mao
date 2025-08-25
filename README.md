@@ -1,5 +1,11 @@
 # mao_robotica_app
 
+<div align="center">
+  <img src="https://github.com/Propato/trabalhos-Ufes-PIC-II/blob/main/assets/docs/images/screenshot_1.png" alt="" width="30%"/>
+  <img src="https://github.com/Propato/trabalhos-Ufes-PIC-II/blob/main/assets/docs/images/screenshot_2.png" alt="" width="30%"/>
+  <img src="https://github.com/Propato/trabalhos-Ufes-PIC-II/blob/main/assets/docs/images/screenshot_3.png" alt="" width="30%"/>
+</div>
+
 A new Flutter project.
 
 ## Getting Started
@@ -14,3 +20,4 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
