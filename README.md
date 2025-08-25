@@ -6,7 +6,7 @@
 
 A new Flutter project.
 
-<div align="center">
+<div center>
   <img src="./assets/docs/images/screenshot_1.png" alt="" width="30%"/>
   <img src="/assets/docs/images/screenshot_2.png" alt="" width="30%"/>
   <img src="/assets/docs/images/screenshot_3.png" alt="" width="30%"/>
