@@ -15,7 +15,7 @@ class GestureService extends ChangeNotifier {
   static const _gesturesKey = 'custom_gestures';
   final Uuid _uuid = Uuid();
 
-  List<Gesture> _gestures = [...predefinedGestures];
+  final List<Gesture> _gestures = [...predefinedGestures];
 
   List<Gesture> get gestures => _gestures;
 
@@ -25,7 +25,8 @@ class GestureService extends ChangeNotifier {
     final gesturesString = prefs.getString(_gesturesKey);
     if (gesturesString != null) {
       final List<dynamic> gesturesJson = jsonDecode(gesturesString);
-      _gestures = gesturesJson.map((json) => Gesture.fromJson(json)).toList();
+      _gestures.addAll(
+          gesturesJson.map((json) => Gesture.fromJson(json)).toList());
       notifyListeners();
     }
   }

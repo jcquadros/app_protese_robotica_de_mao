@@ -28,6 +28,7 @@ class Gesture {
     id: json['id'],
     name: json['name'],
     imagePath: json['imagePath'],
+    isPredefined: json['isPredefined'],
     command: HandCommand.fromJson(json['command']),
   );
 }
