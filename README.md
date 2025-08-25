@@ -1,12 +1,16 @@
 # app-protese-robotica-de-mao
 
+<p align="center">
+  <img src="https://skillicons.dev/icons?i=androidstudio,dart,flutter" /> <br/>
+</p>
+
+A new Flutter project.
+
 <div align="center">
   <img src="./assets/docs/images/screenshot_1.png" alt="" width="30%"/>
   <img src="/assets/docs/images/screenshot_2.png" alt="" width="30%"/>
   <img src="/assets/docs/images/screenshot_3.png" alt="" width="30%"/>
 </div>
-
-A new Flutter project.
 
 ## Getting Started
 
