@@ -44,11 +44,11 @@ final List<Gesture> predefinedGestures = [
     name: 'Ok',
     imagePath: 'assets/images/ok.png',
     command: HandCommand(
-      thumb: 0,
-      index: 0,
-      middle: 100,
-      ring: 100,
-      pinky: 100,
+      thumb: 100,
+      index: 100,
+      middle: 0,
+      ring: 0,
+      pinky: 0,
     ),
   ),
   Gesture(
